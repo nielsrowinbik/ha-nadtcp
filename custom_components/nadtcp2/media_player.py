@@ -9,10 +9,6 @@ import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.media_player import (
     MediaPlayerEntity, MediaPlayerEntityFeature, MediaPlayerDeviceClass, PLATFORM_SCHEMA)
-from homeassistant.components.media_player.const import (
-    SUPPORT_VOLUME_SET,
-    SUPPORT_VOLUME_MUTE, SUPPORT_TURN_ON, SUPPORT_TURN_OFF,
-    SUPPORT_VOLUME_STEP, SUPPORT_SELECT_SOURCE)
 from homeassistant.const import (
     CONF_NAME, STATE_OFF, STATE_ON, STATE_UNKNOWN, STATE_UNAVAILABLE,
     EVENT_HOMEASSISTANT_START, EVENT_HOMEASSISTANT_STOP)
