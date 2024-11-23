@@ -6,5 +6,5 @@
   "issue_tracker": "https://github.com/nielsrowinbik/ha-nadtcp/issues",
   "requirements": [],
   "dependencies": [],
-  "codeowners": ["nielsrowinbik"],
+  "codeowners": ["nielsrowinbik"]
 }
