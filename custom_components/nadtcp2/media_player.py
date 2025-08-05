@@ -10,7 +10,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.components.media_player import (
     MediaPlayerEntity, MediaPlayerEntityFeature, MediaPlayerDeviceClass, PLATFORM_SCHEMA)
 from homeassistant.const import (
-    CONF_NAME, STATE_OFF, STATE_ON, STATE_UNKNOWN, STATE_UNAVAILABLE,
+    CONF_NAME, CONF_UNIQUE_ID, STATE_OFF, STATE_ON, STATE_UNKNOWN, STATE_UNAVAILABLE,
     EVENT_HOMEASSISTANT_START, EVENT_HOMEASSISTANT_STOP)
 
 from homeassistant.helpers.dispatcher import (
@@ -314,18 +314,20 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_MIN_VOLUME, default=DEFAULT_MIN_VOLUME): int,
     vol.Optional(CONF_MAX_VOLUME, default=DEFAULT_MAX_VOLUME): int,
     vol.Optional(CONF_VOLUME_STEP, default=DEFAULT_VOLUME_STEP): int,
+    vol.Optional(CONF_UNIQUE_ID): cv.string,
 })
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Setup the NAD platform."""
     async_add_entities([NADEntity(
-        config.get(CONF_NAME),
-        config.get(CONF_HOST),
-        config.get(CONF_RECONNECT_INTERVAL),
-        config.get(CONF_MIN_VOLUME),
-        config.get(CONF_MAX_VOLUME),
-        config.get(CONF_VOLUME_STEP),
+        name=config.get(CONF_NAME),
+        host=config.get(CONF_HOST),
+        reconnect_interval=config.get(CONF_RECONNECT_INTERVAL),
+        min_volume=config.get(CONF_MIN_VOLUME),
+        max_volume=config.get(CONF_MAX_VOLUME),
+        volume_step=config.get(CONF_VOLUME_STEP),
+        unique_id=config.get(CONF_UNIQUE_ID),
     )])
 
     return True
@@ -334,7 +336,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 class NADEntity(MediaPlayerEntity):
     """Entity handler for the NAD protocol"""
 
-    def __init__(self, name, host, reconnect_interval, min_volume, max_volume, volume_step):
+    def __init__(self, name, host, reconnect_interval, min_volume, max_volume, volume_step, unique_id=None):
         """Initialize the entity properties"""
         self._client = None
         self._name = name
@@ -348,6 +350,8 @@ class NADEntity(MediaPlayerEntity):
         self._muted = None
         self._volume = None
         self._source = None
+        
+        self._attr_unique_id = unique_id or f"nad_{self._host.replace('.', '_')}"
 
     def nad_vol_to_internal_vol(self, nad_vol):
         """Convert the configured volume range to internal volume range.
