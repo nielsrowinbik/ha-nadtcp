@@ -404,7 +404,9 @@ class NADEntity(MediaPlayerEntity):
     @property
     def source_list(self):
         """List of available input sources."""
-        return self._client.available_sources()
+        if self._client:
+            return self._client.available_sources()
+        return []
 
     @property
     def available(self):
