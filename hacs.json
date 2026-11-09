@@ -1,4 +1,5 @@
 {
-  "name": "NAD C338 component",
+  "name": "NAD (TCP)",
+  "homeassistant": "2026.10.4",
   "render_readme": true
 }

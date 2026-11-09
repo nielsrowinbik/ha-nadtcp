@@ -1,1 +1,0 @@
-"""The nadtcp2 component"""

@@ -1,0 +1,3 @@
+# Pins the Home Assistant version the tests run against (homeassistant==2026.10.4).
+pytest-homeassistant-custom-component==0.13.375
+pynadtcp==1.0.0
