@@ -1,0 +1,20 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Reads requirements_test.txt. Updating pytest-homeassistant-custom-component
+  # also moves the Home Assistant version the tests run against.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    ignore:
+      # pynadtcp is also pinned in custom_components/nad_tcp/manifest.json, which
+      # Dependabot doesn't update. Bump both by hand after a pynadtcp release.
+      - dependency-name: "pynadtcp"
