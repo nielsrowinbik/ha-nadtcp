@@ -1,0 +1,54 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured",
+      "reconfigure_successful": "Reconfiguration was successful"
+    },
+    "error": {
+      "cannot_connect": "Failed to connect"
+    },
+    "step": {
+      "reconfigure": {
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "The hostname or IP address of your NAD amplifier."
+        }
+      },
+      "user": {
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "The hostname or IP address of your NAD amplifier."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Could not connect to the NAD amplifier at {host}."
+    },
+    "command_error": {
+      "message": "Error while sending a command to {entity_id}."
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_volume_range": "The minimum volume must be lower than the maximum volume."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "max_volume": "Maximum volume",
+          "min_volume": "Minimum volume"
+        },
+        "data_description": {
+          "max_volume": "The amplifier volume that Home Assistant shows as 100%. Volume up stops here.",
+          "min_volume": "The amplifier volume that Home Assistant shows as 0%. Volume down stops here."
+        }
+      }
+    }
+  }
+}

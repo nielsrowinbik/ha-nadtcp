@@ -1,0 +1,16 @@
+# serializer version: 1
+# name: test_diagnostics
+  dict({
+    'config_entry_data': dict({
+      'host': '**REDACTED**',
+    }),
+    'state': dict({
+      'model': 'NADC338',
+      'muted': False,
+      'power': True,
+      'source': 'Stream',
+      'version': '1.53',
+      'volume_db': -45.0,
+    }),
+  })
+# ---

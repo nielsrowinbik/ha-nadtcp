@@ -1,0 +1,13 @@
+{
+  "domain": "nad_tcp",
+  "name": "NAD (TCP)",
+  "codeowners": ["@nielsrowinbik"],
+  "config_flow": true,
+  "documentation": "https://github.com/nielsrowinbik/ha-nadtcp",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/nielsrowinbik/ha-nadtcp/issues",
+  "loggers": ["pynadtcp"],
+  "requirements": ["pynadtcp==1.0.0"],
+  "version": "2.0.0"
+}
