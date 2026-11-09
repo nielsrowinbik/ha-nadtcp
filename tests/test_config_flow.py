@@ -1,12 +1,21 @@
 """Tests for the NAD (TCP) config flow."""
 
+import json
+from fnmatch import fnmatch
+from ipaddress import ip_address
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
-from homeassistant.config_entries import SOURCE_USER, ConfigEntryState
+from homeassistant.config_entries import (
+    SOURCE_USER,
+    SOURCE_ZEROCONF,
+    ConfigEntryState,
+)
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
+from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from pynadtcp import NadConnectionError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -182,3 +191,174 @@ async def test_options_flow_out_of_bounds(
         await hass.config_entries.options.async_configure(
             result["flow_id"], {CONF_MIN_VOLUME: -90, CONF_MAX_VOLUME: 5}
         )
+
+
+CAST_ID = "bcb250cd21c2fc6482d40594a012e408"
+
+
+def _zeroconf_info(
+    host: str = TEST_HOST, **properties: str | None
+) -> ZeroconfServiceInfo:
+    """Return a Cast announcement as the C338 sends it."""
+    props = {"id": CAST_ID, "md": "NAD Amplifier C338", "fn": "Amplifier"}
+    props.update(properties)
+    return ZeroconfServiceInfo(
+        ip_address=ip_address(host),
+        ip_addresses=[ip_address(host)],
+        hostname="bcb250cd-21c2-fc64-82d4-0594a012e408.local.",
+        name=f"NAD-Amplifier-C338-{CAST_ID}._googlecast._tcp.local.",
+        port=8009,
+        type="_googlecast._tcp.local.",
+        properties={key: value for key, value in props.items() if value is not None},
+    )
+
+
+def test_manifest_matches_c338() -> None:
+    """The zeroconf matcher in the manifest matches the C338's Cast model name."""
+    manifest = json.loads(
+        (
+            Path(__file__).parents[1] / "custom_components/nad_tcp/manifest.json"
+        ).read_text()
+    )
+    (matcher,) = manifest["zeroconf"]
+    assert matcher["type"] == "_googlecast._tcp.local."
+    assert fnmatch("NAD Amplifier C338".lower(), matcher["properties"]["md"])
+    assert not fnmatch("BRAVIA 4K UR3".lower(), matcher["properties"]["md"])
+
+
+@pytest.mark.usefixtures("mock_setup_entry")
+async def test_zeroconf_flow(hass: HomeAssistant, mock_nad_client: AsyncMock) -> None:
+    """A discovered amp is confirmed and named after its Cast friendly name."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_ZEROCONF}, data=_zeroconf_info()
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "zeroconf_confirm"
+    assert result["description_placeholders"] == {
+        "name": "Amplifier",
+        "model": "NAD Amplifier C338",
+        "host": TEST_HOST,
+    }
+
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Amplifier"
+    assert result["data"] == {CONF_HOST: TEST_HOST}
+    assert result["result"].unique_id == CAST_ID
+    mock_nad_client.disconnect.assert_awaited()
+
+
+@pytest.mark.parametrize(
+    ("properties", "expected_title"),
+    [
+        ({"fn": None}, "NAD Amplifier C338"),
+        ({"fn": None, "md": None}, "NADC338"),
+    ],
+)
+@pytest.mark.usefixtures("mock_setup_entry")
+async def test_zeroconf_title_fallbacks(
+    hass: HomeAssistant,
+    mock_nad_client: AsyncMock,
+    properties: dict[str, str | None],
+    expected_title: str,
+) -> None:
+    """Without a friendly name, fall back to the Cast model, then the reported model."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_ZEROCONF}, data=_zeroconf_info(**properties)
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["title"] == expected_title
+
+
+async def test_zeroconf_not_nad_protocol(
+    hass: HomeAssistant, mock_nad_client: AsyncMock
+) -> None:
+    """A NAD Cast device that doesn't answer on port 30001 is ignored."""
+    mock_nad_client.connect.side_effect = NadConnectionError
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_ZEROCONF}, data=_zeroconf_info()
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "cannot_connect"
+    mock_nad_client.disconnect.assert_awaited()
+
+
+async def test_zeroconf_without_cast_id(
+    hass: HomeAssistant, mock_nad_client: AsyncMock
+) -> None:
+    """An announcement without a Cast ID is not set up."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_ZEROCONF}, data=_zeroconf_info(id=None)
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "not_supported"
+    mock_nad_client.connect.assert_not_awaited()
+
+
+@pytest.mark.usefixtures("mock_setup_entry")
+async def test_zeroconf_updates_host(
+    hass: HomeAssistant, mock_nad_client: AsyncMock
+) -> None:
+    """A known amp discovered at a new address gets its host updated."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=CAST_ID, data={CONF_HOST: "192.168.1.99"}
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_ZEROCONF}, data=_zeroconf_info()
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_HOST] == TEST_HOST
+    mock_nad_client.connect.assert_not_awaited()
+
+
+async def test_zeroconf_adopts_entry_added_by_ip(
+    hass: HomeAssistant,
+    mock_nad_client: AsyncMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """An entry added by IP address gets the Cast ID instead of a second offer."""
+    mock_config_entry.add_to_hass(hass)
+    assert mock_config_entry.unique_id is None
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_ZEROCONF}, data=_zeroconf_info()
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert mock_config_entry.unique_id == CAST_ID
+    mock_nad_client.connect.assert_not_awaited()
+
+
+async def test_zeroconf_ignores_entry_with_other_host(
+    hass: HomeAssistant, mock_nad_client: AsyncMock
+) -> None:
+    """An entry added by IP address for another amp is left alone."""
+    other = MockConfigEntry(domain=DOMAIN, data={CONF_HOST: "192.168.1.99"})
+    other.add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_ZEROCONF}, data=_zeroconf_info()
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert other.unique_id is None
+
+
+async def test_zeroconf_added_by_ip_while_waiting(
+    hass: HomeAssistant,
+    mock_nad_client: AsyncMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Confirming aborts if the same amp was added by IP address meanwhile."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_ZEROCONF}, data=_zeroconf_info()
+    )
+    assert result["type"] is FlowResultType.FORM
+
+    mock_config_entry.add_to_hass(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"

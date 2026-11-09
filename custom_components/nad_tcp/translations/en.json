@@ -2,11 +2,14 @@
   "config": {
     "abort": {
       "already_configured": "Device is already configured",
+      "cannot_connect": "Failed to connect",
+      "not_supported": "This device isn't supported",
       "reconfigure_successful": "Reconfiguration was successful"
     },
     "error": {
       "cannot_connect": "Failed to connect"
     },
+    "flow_title": "{name}",
     "step": {
       "reconfigure": {
         "data": {
@@ -23,6 +26,9 @@
         "data_description": {
           "host": "The hostname or IP address of your NAD amplifier."
         }
+      },
+      "zeroconf_confirm": {
+        "description": "Do you want to set up {name} ({model}) at {host}?"
       }
     }
   },
