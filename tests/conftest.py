@@ -7,6 +7,8 @@ import pytest
 from homeassistant.const import CONF_HOST
 from pynadtcp import NadState
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.syrupy import HomeAssistantSnapshotExtension
+from syrupy.assertion import SnapshotAssertion
 
 from custom_components.nad_tcp.const import DOMAIN
 
@@ -27,6 +29,16 @@ SOURCES = [
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations: None) -> None:
     """Enable loading the custom integration in every test."""
+
+
+@pytest.fixture
+def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
+    """Use the Home Assistant snapshot format and the tests/snapshots folder.
+
+    The plugin defines this too, but whether it or syrupy's own fixture wins
+    depends on plugin load order, which differs between machines.
+    """
+    return snapshot.use_extension(HomeAssistantSnapshotExtension)
 
 
 @pytest.fixture
