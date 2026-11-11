@@ -1,0 +1,46 @@
+name: Release
+
+# On every push to main, semantic-release reads the Conventional Commit messages since
+# the last tag. If they call for a release, it sets the version in manifest.json, updates
+# CHANGELOG.md, commits both with [skip ci], and creates the tag and GitHub Release that
+# HACS offers as the update.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Deploy key allowed to bypass the branch ruleset on main. Without the
+          # secret, checkout falls back to GITHUB_TOKEN, which works only while
+          # main is unprotected.
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          npx --yes
+          -p semantic-release@25.0.9
+          -p @semantic-release/changelog@7.0.0
+          -p @semantic-release/exec@7.1.0
+          -p @semantic-release/git@11.0.1
+          -p conventional-changelog-conventionalcommits@9.3.1
+          semantic-release
